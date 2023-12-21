@@ -1,0 +1,107 @@
+---
+title: "Student Funding and Graduation Time"
+author: "Scott Burghart"
+date: "`r Sys.Date()`"
+mainfont: Georgia
+output: 
+  bookdown::html_document2:
+    df_print: kable
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+# Load the libraries ####
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(ggpubr)
+library(tools)
+library(plotly) # for interactive plots
+library(broom) # for r^2 values
+UTColors5 <- c("#9cadb7", "#005f86", "#00a9b7", "#f8971f", "#a6cd57")
+UTColors3 <- c("#005f86", "#f8971f", "#a6cd57")
+```
+
+# Introduction
+
+This report analyses the effect that the amount of TA funding has on the degree outcomes and the time to degree for graduate students in the College of Natural Sciences at UT Austin. The below analyses involve only students who entered a graduate program seeking a PhD.
+
+```{r TotalSuppOutcome fig.cap = "The relationship between the total amount of support received by students and their degree outcomes"}
+# Degree outcomes and distribution total funding ####
+TotalSup <- ggplot(completed, aes(x = Status, y = TotalSupport, fill = Status)) +
+  geom_violin() +
+  scale_fill_manual(labels = c("DC - Master's Continuing", "DM - Master's", "DT - PhD", "NC - Continuing", "NX - No degree"), values = UTColors5) +
+  theme_bw() +
+  theme(legend.position = "top") +
+  ylab("Total Support ($1,000's)") +
+  geom_point(position = position_jitter(seed = 1, width = 0.2))
+TotalSup
+```
+
+
+```{r NormTestTotSupport}
+# Test for normality of total support data #####
+# Create a Q-Q plot
+qqnorm(completed$TotalSupport)
+qqline(completed$TotalSupport)
+shapiro.test(completed$TotalSupport)
+
+# Data are not normally distributed - Kruskall-Wallis test for differences #####
+kruskal.test(TotalSupport ~ Status, data = completed)
+
+```
+
+```{r MeanTotalSupport}
+TotalSummary <- support %>% 
+  group_by(Status) %>% 
+  summarize(MeanTotal = mean(TotalSupport))
+```
+
+
+# Total Support
+
+Unsurprisingly, significantly more money is ultimately spent on students who finish their degrees. For students who left with a PhD, a average of &dollar;296,297 was invested, compared to &dollar;162,574 for students departing with a master's and &dollar;92,435 for students leaving with no degree. Of note is that, due to increasing costs of student support, students currently enrolled in PhD programs have already received an average of &dollar;322,937.
+
+# Form of Support
+
+Of more interest is the form student support takes and its effects on degree outcomes and time to degree
+
+## Degree Outcomes
+
+```{r TASuppOutcomes fig.cap = "The relationship between annual average support as a TA and degree outcomes"}
+AITASup <- ggplot(completed, aes(x = Status, y = AnnAITA, fill = Status)) +
+  geom_violin() +
+  scale_fill_manual(labels = c("DC - Master's Continuing", "DM - Master's", "DT - PhD", "NC - Continuing", "NX - No degree"), values = UTColors5) +
+  theme_bw() +
+  theme(legend.position = "top") +
+  ylab("Annual TA Support ($)") +
+  geom_point(position = position_jitter(seed = 1, width = 0.2))
+AITASup
+```
+
+```{r NormalTestTASupport}
+# Test for normality of total support data #####
+# Create a Q-Q plot
+qqnorm(completed$AnnAITA)
+qqline(completed$AnnAITA)
+shapiro.test(completed$AnnAITA)
+
+# Data are not normally distributed - Kruskall-Wallis test for differences #####
+kruskal.test(AnnAITA ~ Status, data = completed)
+```
+
+
+```{r MeanAITA}
+AITASummary <- support %>% 
+  group_by(Status) %>% 
+  summarize(MeanAnnAITA = mean(AnnAITA))
+
+```
+
+
+Accross the entire college, students who left with a master's or without a degree, on average, received a larger amount of support in the form of TA assignments than students who finished with a PhD (Kruskall-Wallis p < 0.05). The mean annual amount of support as a TA was &dollar;16,903 for students leaving with no degree, &dollar;17,023 for students leaving with a master's, and &dollar;10,462 for students finishiing with a PhD. It is important to note, however, that two of the largest programs (Chemistry and Physics), have students TA their first year. This would have the effect of increasing the average annual amount of TA support for students who stay less than five years.
