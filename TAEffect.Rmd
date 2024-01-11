@@ -1,5 +1,5 @@
 ---
-title: "Student Funding and Graduation Time"
+title: "Student Funding and Graduation Outcomes"
 author: "Scott Burghart"
 date: "`r Sys.Date()`"
 mainfont: Georgia
@@ -11,7 +11,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = -2)
 ```
 
 ```{r LibraryLoad, include=FALSE}
@@ -51,12 +51,13 @@ support <- readxl::read_xlsx("FinancialSupport.xlsx") %>%
          "Fellowship" = "Scholarship / Fellowship ($)",
          "OtherAC" = "Other Academic Appointments ($)",
          "Other" = "Other Support ($)") %>% 
-  filter(!TIP == 0) %>% # filter out students who never enrolled in the  program
+  filter(!TIP == 0) %>% # filter out students who never enrolled in the  program or received no support
   mutate(AnnAITA = AITA / TIP,
          AnnGRA = GRA / TIP,
          AnnFllw = Fellowship / TIP,
          AnnOtherAC = OtherAC / TIP,
-         AnnOther = Other / TIP) %>%  # Create average annual amount of each type of support
+         AnnOther = Other / TIP,
+         PercAITA = 100 * AITA / TotalSupport) %>%  # Create average annual amount of each type of support
   mutate(TotalSupport = TotalSupport / 1000,
          AITA = AITA / 1000,
          GRA = GRA / 1000,
@@ -106,9 +107,11 @@ completed <- support %>%
 
 # Introduction
 
-This report analyses the effect that the amount of TA funding has on the degree outcomes and the time to degree for graduate students in the College of Natural Sciences at UT Austin for cohorts 2012-2017. The below analyses involve only students who entered a graduate program seeking a PhD. Data come from the Graduate School Information System (GSIS). The Neuroscience program is not included because their data is not available for download via GSIS.
+This report analyses the effect that the amount of TA funding has on the degree outcomes and the time to degree for graduate students in the College of Natural Sciences at UT Austin for cohorts 2012-2017. The below analyses involve only students who entered a graduate program seeking a PhD. Data come from the Graduate School Information System (GSIS). The Neuroscience program is not included because their data are not available for download via GSIS.
 
-```{r TotalSuppOutcome, fig.cap= "The relationship between the total amount of support received by students and their degree outcomes"}
+# Total Support
+
+```{r fig.cap= "The relationship between the total amount of support received by students and their degree outcomes", echo=FALSE}
 # Degree outcomes and distribution total funding ####
 TotalSup <- ggplot(completed, aes(x = Status, y = TotalSupport, fill = Status)) +
   geom_violin() +
@@ -121,7 +124,7 @@ TotalSup
 ```
 
 
-```{r NormTestTotSupport}
+```{r Normal_Test_Total_Support, include=FALSE}
 # Test for normality of total support data #####
 # Create a Q-Q plot
 qqnorm(completed$TotalSupport)
@@ -133,191 +136,187 @@ kruskal.test(TotalSupport ~ Status, data = completed)
 
 ```
 
-```{r MeanTotalSupport}
+```{r Mean_Total_Support, include=FALSE}
 TotalSummary <- support %>% 
   group_by(Status) %>% 
   summarize(MeanTotal = mean(TotalSupport))
 ```
 
 
-# Total Support
-
-Unsurprisingly, significantly more money is ultimately spent on students who finish their degrees. For students who left with a PhD, a average of &dollar;296,297 was invested, compared to &dollar;162,574 for students departing with a master's and &dollar;92,435 for students leaving with no degree. Of note is that, due to increasing costs of student support, students currently enrolled in PhD programs have already received an average of &dollar;322,937.
+Unsurprisingly, significantly more money is ultimately spent on students who finish their degrees. For students who left with a PhD, an average of &dollar;296,297 was invested, compared to &dollar;162,574 for students departing with a master's and &dollar;92,435 for students leaving with no degree. As an aside, though not included in the figure, due to increasing costs of student support, it was calculated taht students currently enrolled in PhD programs have already received an average of &dollar;322,937.
 
 # Form of Support
 
-Of more interest for this report is the form student support takes and its effects on degree outcomes and time to degree. Specifically, do students who receive more support in the form of TA assignments take longer to finish or are they at a greater risk of departing the program without completing their PhD? As the number of TA semesters is not readily available, the dollar amount of support as an AI or as a TA (AITA) was used as a proxy for the number of semesters the student was employed in an instructional role. To control for the amount of time different students spent in the program, an annual average of AITA was calculated.
+Of more interest for this report is the form student support takes and its effects on degree outcomes and time to degree (TTD). Specifically, do students who receive more support in the form of AI or TA (AITA) assignments take longer to finish or are they at a greater risk of departing the program without completing their PhD? This is commplicated by the fact that the number of semesters a student spends as an AITA is not readily available. The dollar amount of support as an AITA can be used as a proxy for the number of semesters the student was employed in an instructional role but this is a less than optimal measure of AITA semesters since the cohorts examined span a time of aggressive stipend increases within the college. As such, AITA semesters towards the end of the period examined will be weighted more heavily. Additionally, AI assignments pay 6% more than TA assignments and the source data makes no distinction between the two. To partially control for these issues, the percentage of total support as an AITA was used.
 
 ## Degree Outcomes
 
-```{r TASuppOutcomes, fig.cap = "The relationship between annual average support as an AITA and degree outcomes"}
-AITASup <- ggplot(completed, aes(x = Status, y = AnnAITA, fill = Status)) +
+```{r fig.cap = "The relationship between percent of support as an AITA and degree outcomes", echo=FALSE, warning=FALSE}
+AITASupPerc <- ggplot(completed, aes(x = Status, y = PercAITA, fill = Status)) +
   geom_violin() +
   scale_fill_manual(labels = c("DM - Master's", "DT - PhD", "NX - No degree"), values = UTColors5) +
   theme_bw() +
   theme(legend.position = "top") +
-  ylab("Annual AITA Support ($)") +
+  ylab("Percent of support as AITA") +
   geom_point(position = position_jitter(seed = 1, width = 0.2))
-AITASup
+AITASupPerc
 ```
 
-```{r NormalTestTASupport}
+```{r Normal_Test_PercAITA, include=FALSE}
 # Test for normality of total support data #####
 # Create a Q-Q plot
-qqnorm(completed$AnnAITA)
-qqline(completed$AnnAITA)
-shapiro.test(completed$AnnAITA)
+qqnorm(completed$PercAITA)
+qqline(completed$PercAITA)
+shapiro.test(completed$PercAITA)
 
 # Data are not normally distributed - Kruskall-Wallis test for differences #####
-kruskal.test(AnnAITA ~ Status, data = completed)
+kruskal.test(PercAITA ~ Status, data = completed)
+
 ```
 
-
-```{r MeanAITA}
-AITASummary <- completed %>% 
+```{r Mean_Percent_AITA, include=FALSE}
+PercAITASummary <- completed %>% 
+  filter(!is.na(PercAITA)) %>% 
   group_by(Status) %>% 
-  summarize(MeanAnnAITA = mean(AnnAITA))
-
+  summarize(MeanPercAITA = mean(PercAITA))
 ```
 
 
-Accross the entire college, students who left with a master's or without a degree, on average, received a larger amount of support in the form of AITA assignments than students who finished with a PhD (Kruskall-Wallis p < 0.05). The mean annual amount of support as an AITA was &dollar;16,903 for students leaving with no degree, &dollar;17,023 for students leaving with a master's, and &dollar;10,462 for students finishiing with a PhD. It is important to note, however, that students entering two of the largest programs (Chemistry and Physics), TA their first year. This will increase the average annual amount of AITA support for students who stay less than five years.
+<br/>
 
-```{r TASupportOutcomesMinusPHYCHM, fig.cap= "The relationship between annual average support as an AITA and degree outcomes with Physics and Chemistry removed"}
+The percentage of total support attributed to AITA work assignments was different between the degree outcome groups (Kruskal-Wallis p < 0.05). On average students who finished with a PhD received 19.9% of their support as an AITA while those who left without a degree averaged 24.5% and those who finished with a master's received 32.6%.
+
+It is important to note that students entering two of the largest programs (Chemistry and Physics), almost invariably TA their first year. This will increase the average annual amount of AITA support for students who stay less than five years and thus will, thus, usually appear in the DM or NX category. To examine if these two programs had an undue effect, they were removed and the analysis was repeated.
+
+```{r fig.cap= "The relationship between percentage support as an AITA and degree outcomes with Physics and Chemistry removed", echo=FALSE, warning=FALSE}
 # Remove Physics and Chemistry from the analysis
 completed2 <- completed %>% 
   filter(!(Department %in% c("Physics", "Chemistry")))
 
-AITASup2 <- ggplot(completed2, aes(x = Status, y = AnnAITA, fill = Status)) +
+AITASup2Perc <- ggplot(completed2, aes(x = Status, y = PercAITA, fill = Status)) +
   geom_violin() +
   scale_fill_manual(labels = c("DM - Master's", "DT - PhD", "NX - No degree"), values = UTColors5) +
   theme_bw() +
   theme(legend.position = "top") +
-  ylab("Annual AITA Support ($)") +
+  ylab("Percentage AITA Support") +
   geom_point(position = position_jitter(seed = 1, width = 0.2))
-AITASup2
-
+AITASup2Perc
 ```
 
-```{r MeanAITA}
-AITASummary2 <- completed2 %>% 
+
+```{r Mean_AITA2_Percent, include=FALSE}
+AITASummary2Perc <- completed2 %>% 
+  filter(!is.na(PercAITA)) %>% 
   group_by(Status) %>% 
-  summarize(MeanAnnAITA = mean(AnnAITA))
+  summarize(MeanPercAITA = mean(PercAITA))
 
 ```
 
-After removing Chemistry and Physics students from the analysis, there were still significant differences between the degree outcome funding distributions. The lowest average of annual AITA support was for students who finished with a PhD (&dollar;9,406) while students that left with no degree received a mean of &dollar;10,676 and those that left with a masters received a mean of &dollar;16,062 of annual AITA support.
-
-```{r NormalTestTASupport2}
-
+```{r Normal_Test_TASupport2_Percent, include=FALSE}
 # Test for normality of total support data #####
 # Create a Q-Q plot
-qqnorm(completed2$AnnAITA)
-qqline(completed2$AnnAITA)
-shapiro.test(completed2$AnnAITA)
+qqnorm(completed2$PercAITA)
+qqline(completed2$PercAITA)
+shapiro.test(completed2$PercAITA)
 
-# Data are not normally distributed - Kruskall-Wallis test for differences #####
-kruskal.test(AnnAITA ~ Status, data = completed2)
+# Data are not normally distributed - Kruskal-Wallis test for differences #####
+kruskal.test(PercAITA ~ Status, data = completed2)
 ```
 
+<br/>
 
+With Chemistry and Physics students removed from the analysis, the percentage of funding from being an AITA was virtually identical between students who finished with a PhD and those who left with no degree at 17.7% and 16.0%, respectively. The average percentage of AITA support for students that left with a master's, however, was almost twice as much at 31.1%
 
+<br/>
 
 ## Time to Degree
 
-```{r AITAandTTD, fig.cap= "Time in the program related to the annual average support as an AITA"}
-# Total TA funding related to graduation time ####
-TApercent <- support %>% 
-  mutate(PercTA = (AITA / TotalSupport)* 100) %>% 
-  select(Cohort, AITA, AnnAITA, PercTA, Department, Gender, Ethnicity, EID, TIP, Status) %>% 
-  filter(!Status == "DC" & !Status == "NC")
-
-TAeffect <- ggplot(TApercent, aes(x = AnnAITA, y = TIP, color = Status)) +
+```{r fig.cap="Relationship between the percentage of AITA support and TTD", echo=FALSE, message=FALSE, warning=FALSE}
+TAeffectPerc <- ggplot(completed, aes(x = PercAITA, y = TIP, color = Status)) +
   scale_color_manual(values = UTColors3) +
   geom_point() +
   geom_smooth(method = "lm") +
   theme_bw() +
   ylab("Time in Program (years)") +
-  xlab("Average Annual Support from AITA ($)")
-TAeffect
-
+  xlab("Percent Support as AITA")
+TAeffectPerc
 ```
 
-The average annual support individual students receive is not positively correlated to time to degree (TTD). 
+<br/>
 
-```{r AITAandDEPT}
+``` {r fig.cap="Relationship between percentage of AITA funding and TTD between different programs", echo=FALSE}
 # Stats by Supervisor1 and department ####
-support_by_PI <- support %>% 
+support_by_PI_perc <- support %>% 
   group_by(Department, Supervisor1) %>% 
-  summarize(mean(AnnAITA))
+  summarize(mean(PercAITA))
 
 time_by_PI <- support %>% 
   group_by(Department, Supervisor1) %>% 
   summarize(mean(TIP))
 
-AnnAITA_by_PI <- support %>% 
+PercAITA_by_PI <- support %>% 
   group_by(Department, Supervisor1) %>% 
-  summarize(mean(AnnAITA))
+  summarize(mean(PercAITA))
 
 time_by_dept <- support %>% 
   filter(Status == "DT") %>% 
   group_by(Department) %>% 
   summarize(mean(TIP))
 
-AnnAITA_by_dept <- support %>% 
+PercAITA_by_dept <- support %>% 
   filter(Status == "DT") %>% 
   group_by(Department) %>% 
-  summarize(mean(AnnAITA))
+  summarize(mean(PercAITA))
 
-time_funding_by_dept <- left_join(time_by_dept, AnnAITA_by_dept, by = "Department") %>% 
+time_funding_by_dept_perc <- left_join(time_by_dept, PercAITA_by_dept, by = "Department") %>% 
   rename("AvgTIP" = "mean(TIP)") %>% 
-  rename("AvgAnnTA" = "mean(AnnAITA)")
+  rename("AvgPercAITA" = "mean(PercAITA)")
 
 # Time in program in each department by the average annual amount of TA support ####
-dept_time_by_TA <- ggplot(time_funding_by_dept, aes(x = AvgAnnTA, y = AvgTIP, color = Department)) +
+dept_time_by_TA_perc <- ggplot(time_funding_by_dept_perc, aes(x = AvgPercAITA, y = AvgTIP, color = Department)) +
   geom_point(size = 5) +
   scale_color_brewer(palette = "Paired") +
   theme_bw() +
   theme(legend.position = "top") +
   ylab("Average Time to Graduation (years)") +
-  xlab("Average Annual Support as TA ($)")
-dept_time_by_TA
+  xlab("Average Percentage Support as AITA")
+dept_time_by_TA_perc
 
 ```
 
-Between departments, for students completing their PhD, the amount of annual support students received as TAs did not show a relationship with time to degree.
+<br/><br/>
 
-```{r AITAinDEPT}
+```{r fig.cap="Relationship between average annual AITA funding and TTD of PhD students in different programs", echo=FALSE, message=FALSE, warning=FALSE}
 # Function to get R-squared value
 get_r_squared <- function(model) {
   rsq <- summary(model)$r.squared
   return(rsq)
 }
 
-PI_wn_pgm <- support %>% 
+PI_wn_pgm_perc <- support %>% 
   filter(Status == "DT") %>% 
   group_by(Department, Supervisor1) %>% 
   summarise(
-    "TAsup" = mean(AnnAITA),
+    "PercTAsup" = mean(PercAITA),
     "TIP" = mean(TIP)
   )
 
 # Create a summary data frame with R-squared values
-r_squared_df <- PI_wn_pgm %>% 
+r_squared_df <- PI_wn_pgm_perc %>% 
   group_by(Department) %>% 
-  summarise(R_squared = get_r_squared(lm(TIP ~ TAsup)))
+  summarise(R_squared = get_r_squared(lm(TIP ~ PercTAsup)))
 
 # Merge R-squared values back to the main data frame
-PI_wn_pgm <- merge(PI_wn_pgm, r_squared_df, by = "Department")
+PI_wn_pgm_perc <- merge(PI_wn_pgm_perc, r_squared_df, by = "Department")
 
 # Create the plot
-PIsupport <- ggplot(PI_wn_pgm, aes(x = TAsup, y = TIP, color = Department)) +
-  geom_point(size = 3) +
+PIsupportPerc <- ggplot(PI_wn_pgm_perc, aes(x = PercTAsup, y = TIP, color = Department)) +
+  geom_point(size = 1.5) +
   stat_smooth(method = "lm", se = FALSE, fullrange = TRUE, color = "#005f86") +
   scale_color_brewer(palette = "Paired") +
   theme_bw() +
-  theme(legend.position = "top") +
-  xlab("Average annual support as TA ($)") +
+  theme(legend.position = "none") +
+  xlab("Average percentage support as AITA") +
   ylab("Average time to degree (years)") +
   facet_wrap(~ Department, scales = "free") +  # Add separate plots for each Department
   
@@ -334,8 +333,13 @@ PIsupport <- ggplot(PI_wn_pgm, aes(x = TAsup, y = TIP, color = Department)) +
     show.legend = FALSE
   )
 
-PIsupport
-
+PIsupportPerc
 ```
 
-Within each department, the average TTD versus average annual support as a TA did have some slopes, but R-squared values were very low. The hightest value occurring in Integrative Biology and Computer Science (0.22 and 0.2, respectively).
+<br/><br/>
+
+Across the college, time to degree (TTD) did not show a positive relationship to the percentage of support as an AITA.
+
+On a departmental basis, there is a gap splitting the programs up into two different groups. Marine Science, ILS (Molec Biosciences), Astronomy, and Computer Science all rely on AITA assignments to provide less than 15% of student funding. Chemistry, Integrative Biology (EEB and PB), Physics, Mathematics, SDS, HDFS, and Nutritional Sciences all rely on AITA assignments to provide more than 20% of their student funding. Nutritional Sciences relies on AITA assignments by far the most, using them to provide 36% of student funding. Between departments, though, for students completing their PhD, the average percentage of total support as an AITA showed a relationship with time to degree.
+
+In Figure 3.5, each point represents an individual PI within each program. Within each department, the average TTD versus percentage support as an AITA did have some positive slopes, but R-squared values were very low. The highest values occurred in Integrative Biology and Computer Science.
